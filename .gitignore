@@ -1,18 +1,96 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
-# Other files and folders
-.settings/
+-- Definir las plantas y brainrots en un almacenamiento central (puedes personalizar estos objetos)
+local PlantasStorage = ReplicatedStorage:WaitForChild("PlantasStorage")
+local BrainrotsStorage = ReplicatedStorage:WaitForChild("BrainrotsStorage")
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
+-- Función para duplicar un objeto (planta o Brainrot)
+local function duplicarObjeto(jugador, objetoTipo)
+    -- Verificamos si el jugador tiene el objeto para duplicar
+    local objetoOriginal
+    if objetoTipo == "Planta" then
+        objetoOriginal = PlantasStorage:FindFirstChild(jugador.Name)  -- Obtener el objeto original
+    elseif objetoTipo == "Brainrot" then
+        objetoOriginal = BrainrotsStorage:FindFirstChild(jugador.Name)  -- Obtener el objeto original
+    end
+    
+    if objetoOriginal then
+        -- Crear un nuevo objeto duplicado
+        local duplicado = objetoOriginal:Clone()
+        
+        -- Añadir el duplicado al inventario del jugador
+        duplicado.Parent = jugador:WaitForChild("Backpack")  -- O cualquier contenedor de inventario que utilices
+        
+        -- Notificar al jugador que su duplicado fue creado
+        jugador:SendNotification({
+            Title = "Duplicado Creado",
+            Text = "¡Se ha duplicado una " .. objetoTipo .. " para ti!",
+            Duration = 3
+        })
+    else
+        -- Si no se encuentra el objeto, notificamos al jugador
+        jugador:SendNotification({
+            Title = "Error",
+            Text = "No tienes " .. objetoTipo .. " para duplicar.",
+            Duration = 3
+        })
+    end
+end
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+-- Función para transferir un objeto duplicado a otro jugador
+local function transferirObjeto(aJugador, bJugador, objetoTipo)
+    local objetoDuplicado
+    -- Buscar el objeto duplicado en el inventario de aJugador
+    if objetoTipo == "Planta" then
+        objetoDuplicado = aJugador.Backpack:FindFirstChild("PlantaDuplicada")
+    elseif objetoTipo == "Brainrot" then
+        objetoDuplicado = aJugador.Backpack:FindFirstChild("BrainrotDuplicado")
+    end
+    
+    if objetoDuplicado then
+        -- Transferir el objeto al inventario de bJugador
+        objetoDuplicado.Parent = bJugador:WaitForChild("Backpack")
+        
+        -- Notificar a ambos jugadores
+        aJugador:SendNotification({
+            Title = "Objeto Transferido",
+            Text = "Has transferido una " .. objetoTipo .. " a " .. bJugador.Name,
+            Duration = 3
+        })
+        
+        bJugador:SendNotification({
+            Title = "Nuevo Objeto",
+            Text = "Has recibido una " .. objetoTipo .. " de " .. aJugador.Name,
+            Duration = 3
+        })
+    else
+        -- Si no se encuentra el objeto en el inventario de aJugador, notificar
+        aJugador:SendNotification({
+            Title = "Error",
+            Text = "No tienes " .. objetoTipo .. " para transferir.",
+            Duration = 3
+        })
+    end
+end
+
+-- Event listener para comandos del jugador
+game.ReplicatedStorage:WaitForChild("DuplicarObjetoEvent").OnServerEvent:Connect(function(jugador, objetoTipo)
+    if objetoTipo == "Planta" or objetoTipo == "Brainrot" then
+        duplicarObjeto(jugador, objetoTipo)
+    end
+end)
+
+game.ReplicatedStorage:WaitForChild("TransferirObjetoEvent").OnServerEvent:Connect(function(jugador, destinoJugador, objetoTipo)
+    -- Transferir objeto de un jugador a otro
+    local destino = Players:FindPlayer(destinoJugador)
+    if destino then
+        transferirObjeto(jugador, destino, objetoTipo)
+    else
+        jugador:SendNotification({
+            Title = "Error",
+            Text = "No se pudo encontrar al jugador destino.",
+            Duration = 3
+        })
+    end
+end)
